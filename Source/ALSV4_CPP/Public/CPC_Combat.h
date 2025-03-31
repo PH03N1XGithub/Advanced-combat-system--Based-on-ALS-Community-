@@ -13,6 +13,8 @@
 #include "HP_Bar_Widget.h"
 #include "CPC_Combat.generated.h"
 
+enum class EALSWaeponChoiseState : uint8;
+class ALeviathanAxe;
 class ACharacter;
 class USkeletalMeshComponent;
 class UAnimInstance;
@@ -53,6 +55,14 @@ public:
 	float ForwardDir;
 	UPROPERTY(EditAnywhere,BlueprintReadWrite)
 	float RightDir;
+	UPROPERTY(EditAnywhere,BlueprintReadWrite)
+	bool bLocked;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsAiming;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bAxeThrown;
 
 	//Enums
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -66,8 +76,11 @@ public:
 	TArray<UAnimMontage*> FistMontageArray;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
 	TArray<UAnimMontage*> SwordMontageArray;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
+	TArray<UAnimMontage*> LeviathanMontageArray;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	AActor* FocusedEnemy;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<AActor*> EnemyArray;
 	TArray<AActor*> EnemyToHit;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
@@ -76,6 +89,10 @@ public:
 	UAnimMontage* Sword_Equip;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UAnimMontage* Sword_Holster;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* Axe_Equip;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* Axe_Holster;
 	UPROPERTY(EditAnywhere,BlueprintReadWrite)
 	UAnimMontage* CharacterBlock;
 	UPROPERTY(EditAnywhere,BlueprintReadWrite)
@@ -101,7 +118,9 @@ public:
 	float DodgeAngle;
 	UPROPERTY(EditAnywhere,BlueprintReadWrite)
 	TMap<FVector, UAnimMontage*> Dodge_Montages;
-	
+
+	UPROPERTY(EditAnywhere,BlueprintReadWrite)
+	float Timer;
 
 private:
 
@@ -133,6 +152,8 @@ public:
 	UWidget* HP_Bar_Widget;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UStaticMeshComponent* Sword = nullptr;
+	UPROPERTY(editAnywhere, BlueprintReadWrite)
+	ALeviathanAxe* LeviathanAxe = nullptr;
 	 UPROPERTY(BlueprintReadWrite)
 	AALSBaseCharacter* AlsCharacter = nullptr;
 
@@ -154,6 +175,10 @@ public:
 	TSubclassOf<UUserWidget> wc;
 	UPROPERTY(VisibleInstanceOnly)
 	class UHP_Bar_Widget* tw;
+
+
+	UPROPERTY()
+	UAnimMontage*  AnimRef = nullptr;
 
 
 public:	
@@ -196,12 +221,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void PerformTrace();
 
-	void GetHit(const ACharacter* Attacker, FStrucHitReactions HitReaction) const;
+	void GetHit(const ACharacter* Attacker, FStrucHitReactions HitReaction);
 	
 
-	void AttachWeapon(bool bAdd) const;
+	void AttachWeapon(const bool bAdd,const EALSWaeponChoiseState State) const;
 
-	void EquipWeapon(bool bEquip) const;
+	void EquipWeapon(bool bEquip, EALSOverlayState State);
 
 
 	UFUNCTION(BlueprintCallable)

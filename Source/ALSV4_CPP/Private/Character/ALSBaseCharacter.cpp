@@ -19,7 +19,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 #include "Net/UnrealNetwork.h"
-
+#include "WorldPartition/ContentBundle/ContentBundleLog.h"
 
 
 const FName NAME_FP_Camera(TEXT("FP_Camera"));
@@ -390,7 +390,7 @@ void AALSBaseCharacter::Server_SetViewMode_Implementation(EALSViewMode NewViewMo
 }
 
 void AALSBaseCharacter::SetOverlayState(const EALSOverlayState NewState, bool bForce)
-{
+	{
 	if (bForce || OverlayState != NewState)
 	{
 		UCPC_Combat* CombatComponent = FindComponentByClass<UCPC_Combat>();
@@ -398,31 +398,71 @@ void AALSBaseCharacter::SetOverlayState(const EALSOverlayState NewState, bool bF
 		if (!CombatComponent  || CombatComponent->ActiveState != EActiveState::Idle) {
 			return;
 		}
-			
-
-		const EALSOverlayState Prev = OverlayState;
-		OverlayState = NewState;
-		OnOverlayStateChanged(Prev);
 		
+		const EALSOverlayState Prev = OverlayState;
+		OnOverlayStateChanged(Prev);
 
-		if(NewState == EALSOverlayState::Sword && CombatComponent->Sword_Equip)
+#define IS_PLAYER GetController() && GetController()->IsPlayerController()
+		
+		if (IS_PLAYER) {
+			UE_LOG(LogTemp, Warning, TEXT("Player-controlled character!"));
+		}
+
+		
+		if (Prev == EALSOverlayState::Leviathan && CombatComponent->Sword_Holster && !CombatComponent->bAxeThrown)
 		{
-			CombatComponent->EquipWeapon(true);
-			GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Red, TEXT("sword"));
-			SetDesiredRotationMode(EALSRotationMode::VelocityDirection);
+			CombatComponent->EquipWeapon(false,Prev);
 		}
 		if(Prev == EALSOverlayState::Sword && CombatComponent->Sword_Holster)
-			CombatComponent->EquipWeapon(false);
-		 if(!CombatComponent->Sword_Equip)
-			 GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Red, TEXT("!!sword"));
+		{
+			CombatComponent->EquipWeapon(false,Prev);
+		}
+		if (Prev != EALSOverlayState::Sword && Prev != EALSOverlayState::Leviathan)
+		{
+			if(NewState == EALSOverlayState::Sword && CombatComponent->Sword_Equip)
+			{
+				CombatComponent->EquipWeapon(true,NewState);
+				SetDesiredRotationMode(EALSRotationMode::VelocityDirection);
+			}
+			if (NewState == EALSOverlayState::Leviathan &&CombatComponent->Sword_Equip)
+			{
+				CombatComponent->EquipWeapon(true,NewState);
+				SetDesiredRotationMode(EALSRotationMode::VelocityDirection);
+			}
+			OverlayState = NewState;
+		}else
+		{
+			FTimerHandle TimerHandle;
+			float delayTime = CombatComponent->AnimRef == nullptr ? 0.0001f :CombatComponent->AnimRef->GetPlayLength();
+			if (CombatComponent->bAxeThrown)
+			{
+				delayTime = 0.0001f;
+			}
+			GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this, NewState, CombatComponent]()
+			{
+				if(NewState == EALSOverlayState::Sword && CombatComponent->Sword_Equip)
+				{
+					CombatComponent->EquipWeapon(true,NewState);
+					SetDesiredRotationMode(EALSRotationMode::VelocityDirection);
+				}
+				if (NewState == EALSOverlayState::Leviathan &&CombatComponent->Sword_Equip)
+				{
+					CombatComponent->EquipWeapon(true,NewState);
+					SetDesiredRotationMode(EALSRotationMode::VelocityDirection);
+				}
+				OverlayState = NewState;
+			}, delayTime , false);
+		}
 		
-
 		if (GetLocalRole() == ROLE_AutonomousProxy)
 		{
 			Server_SetOverlayState(NewState, bForce);
 		}
 	}
 }
+
+
+
 
 void AALSBaseCharacter::SetGroundedEntryState(EALSGroundedEntryState NewState)
 {
@@ -1336,6 +1376,13 @@ void AALSBaseCharacter::AimAction_Implementation(bool bValue)
 	if (bValue)
 	{
 		// AimAction: Hold "AimAction" to enter the aiming mode, release to revert back the desired rotation mode.
+		if (OverlayState == EALSOverlayState::Leviathan)
+		{
+			SetRotationMode(EALSRotationMode::Aiming);
+			CombatComponent->bIsAiming = true;
+			
+			return;
+		}
 		if (CombatComponent->CombatMode)
 		{
 			CombatComponent->bBlock = true;

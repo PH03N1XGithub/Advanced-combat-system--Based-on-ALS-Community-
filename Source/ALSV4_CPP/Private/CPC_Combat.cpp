@@ -3,9 +3,10 @@
 
 #include "CPC_Combat.h"
 
-#include "AudioDevice.h"
 #include "HP_Bar_Widget.h"
 #include "DrawDebugHelpers.h" 
+#include "LeviathanAxe.h"
+#include "MathUtil.h"
 #include "Blueprint/UserWidget.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -13,6 +14,7 @@
 #include "Components/WidgetComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Character/ALSBASECHARACTER.H"
+#include "Character/Animation/Notify/AttachWeapon.h"
 #include "Containers/Array.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -31,7 +33,7 @@ UCPC_Combat::UCPC_Combat(): bTraceOn(false), ParryTimer(0), bRightAttack(false),
                             Sword_Holster(nullptr), CharacterBlock(nullptr), ParryKick(nullptr),
                             CurveFloat(nullptr),
                             InstepSpeed(0),
-                            bCanTurn(true), StoredKey(), DodgeAngle(0),
+                            bCanTurn(true), StoredKey(), DodgeAngle(0), Timer(0),
                             HP_Bar(nullptr),
                             HP_Bar_Widget(nullptr),
                             HPWidget(nullptr),
@@ -88,12 +90,16 @@ void UCPC_Combat::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 
     if (CharacterOwner->IsPlayerControlled())
     {
+        /*if (!bLocked)
+        {
+           
+        }*/
         FindEnemy();
         CheckEndCombat();
     }
 
     TargetEnemy(DeltaTime);
-    WidgetPosition(hpbarR);
+    //WidgetPosition(hpbarR);
     
     
 
@@ -156,6 +162,8 @@ void UCPC_Combat::EnterCombatMode()
     ))
     {
         CombatMode = true;
+        // ReSharper disable once CppIncompleteSwitchStatement
+        // ReSharper disable once CppDefaultCaseNotHandledInSwitchStatement
         switch (OverlayState) {
         case EALSOverlayState::Default:
             CharacterCapsule->SetCapsuleRadius(45);
@@ -238,7 +246,7 @@ void UCPC_Combat::EnterCombatMode()
     }
 }
 
-
+FVector lastmovement;
 bool GBDoOnceFocusEnemy = true;
 void UCPC_Combat::FindEnemy()
 {
@@ -259,59 +267,73 @@ void UCPC_Combat::FindEnemy()
             // Calculate the distance
             const float Distance = FVector::Dist(GetOwner()->GetActorLocation(), TEnemy->GetActorLocation());
 
-            /*if (Distance <= 500)
-            { */
+        
 
-                FVector Dif = TEnemy->GetActorLocation() - GetOwner()->GetActorLocation();
-                Dif.Normalize();
+             FVector Dif = TEnemy->GetActorLocation() - GetOwner()->GetActorLocation();
+            Dif.Normalize();
 
-                // Actor forward vec
-                PlayerController = UGameplayStatics::GetPlayerController(this, 0);
-                const APlayerCameraManager* PlayerCameraManager = PlayerController->PlayerCameraManager;
-                FVector ForwardVector = PlayerCameraManager->GetActorForwardVector();
-                if (PlayerCameraManager->GetActorForwardVector() != ForwardVector)
-                    break;
+            // Actor forward vec
+            PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+            const APlayerCameraManager* PlayerCameraManager = PlayerController->PlayerCameraManager;
+            FVector ForwardVector = PlayerCameraManager->GetActorForwardVector();
+            if (PlayerCameraManager->GetActorForwardVector() != ForwardVector)
+                break;
 
-                // Last input vec
-                FVector LastInput = CharacterMovement->GetLastInputVector();
+            // Last input vec
+            const FVector LastInput = CharacterMovement->GetLastInputVector();
 
-                // Vec select
-                //bool bPickA = true;
-                FVector Result = UKismetMathLibrary::SelectVector(ForwardVector, LastInput, bPickA);
-                Result.Normalize();
+            // Vec select
+            //bool bPickA = true;
+            FVector Result = UKismetMathLibrary::SelectVector(ForwardVector, LastInput, bPickA);
+            Result.Normalize();
+            if (!bPickA){Timer++;}
+            if (lastmovement != CharacterMovement->GetLastInputVector()){Timer = 0;}
 
 
-                /*if (Result == LastInput) {
-                    return;
-                }*/
+            /*if (Result == LastInput) {
+                return;
+            }*/
 
-                FVector Combine = LastInput + ForwardVector;
+           // FVector Combine = LastInput + ForwardVector;
 
-                if(Distance <= 1000)
+            if(Distance <= 1000)
+            {
+                if (!bPickA && Timer <80)
                 {
-                    
-                    
-                    if (bPickA)
-                    {
-                        if (const float TemptDot = Dif.Dot(Combine); TemptDot > TempFoundDot)
-                        {
-                            TempFoundDot = TemptDot;
-                            TFoundEnemy = TEnemy;
-                        }
-                    }
-                    else
-                    {
-                        if (const float TemptDot = Dif.Dot(Result); TemptDot > TempFoundDot)
-                        {
-                            TempFoundDot = TemptDot;
-                            TFoundEnemy = TEnemy;
-                        }
-
-                    }
-                    
+                    lastmovement = CharacterMovement->GetLastInputVector();
+                    return;
+                }else if (bPickA)  
+                {
+                    Timer = 0;
+                }
+                if (const float TemptDot = Dif.Dot(Result); TemptDot > TempFoundDot)
+                {
+                    GEngine->AddOnScreenDebugMessage(1,5,FColor::Black, TEXT("asdaasda")); 
+                    TempFoundDot = TemptDot;
+                    TFoundEnemy = TEnemy;
                 }
                 
-            //}
+                // if (bPickA)
+                // {
+                //     if (const float TemptDot = Dif.Dot(Combine); TemptDot > TempFoundDot)
+                //     {
+                //         TempFoundDot = TemptDot;
+                //         TFoundEnemy = TEnemy;
+                //     }
+                // }
+                // else
+                // {
+                //     if (const float TemptDot = Dif.Dot(Result); TemptDot > TempFoundDot)
+                //     {
+                //         TempFoundDot = TemptDot;
+                //         TFoundEnemy = TEnemy;
+                //     }
+                //
+                // }
+                
+            }
+                
+            
         }
 
         if (!TFoundEnemy)
@@ -351,27 +373,44 @@ void UCPC_Combat::CheckAutoFind()
     PlayerController = UGameplayStatics::GetPlayerController(this, 0); // Use the appropriate player index
     const FRotator ControlRotation = PlayerController->GetControlRotation();
 
+    if (FMath::Abs(ControlRotation.Yaw - YawValue) > 15)
+    {
+        // Rotation has changed
+        bPickA = true;
+        GBShouldDoOnce = true;
+        // You can add any additional actions here
 
-    if (CharacterMovement->GetLastInputVector().Length() >= 0.8f)
-    {
-        
-        if (GBShouldDoOnce)
-        {
-            YawValue = ControlRotation.Yaw;
-            bPickA = false;
-            GBShouldDoOnce = false;
-            //GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Purple, TEXT("vector input"));
-        }
+        // Update YawValue to the new control rotation
+        YawValue = ControlRotation.Yaw;
     }
-    else
+    else if (CharacterMovement->GetLastInputVector().SizeSquared() >= 0.64f) // Adjust the threshold as needed
     {
-        if (ControlRotation.Yaw > YawValue + 15 || ControlRotation.Yaw < YawValue - 15)
-        {
-            //GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Purple, TEXT("rot"));
-            bPickA = true;
-            GBShouldDoOnce = true;
-        }
+        // Movement input is significant
+        bPickA = false;
+        GBShouldDoOnce = false;
+        // You can add any additional actions here
     }
+
+    // if (CharacterMovement->GetLastInputVector().Length() >= 0.8f)
+    // {
+    //     
+    //     if (GBShouldDoOnce)
+    //     {
+    //         YawValue = ControlRotation.Yaw;
+    //         bPickA = false;
+    //         GBShouldDoOnce = false;
+    //         //GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Purple, TEXT("vector input"));
+    //     }
+    // }
+    // else
+    // {
+    //     if (ControlRotation.Yaw > YawValue + 15 || ControlRotation.Yaw < YawValue - 15)
+    //     {
+    //         //GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Purple, TEXT("rot"));
+    //         bPickA = true;
+    //         GBShouldDoOnce = true;
+    //     }
+    // }
 
 }
 
@@ -400,7 +439,7 @@ void UCPC_Combat::SelectFocusEnemy(AActor* Enemy)
         if (FocusedEnemy != nullptr && CombatMode)
         {
             UCPC_Combat* FocusedEnemyCpc = FocusedEnemy->GetComponentByClass<UCPC_Combat>();
-            GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Green, TEXT("Bar On"));
+            GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Green, TEXT("Bar On gacı"));
             FocusedEnemyCpc->ShowBar(true); 
             if (CurveFloat) { 
                 
@@ -438,7 +477,7 @@ void UCPC_Combat::LightAttack()
     case EALSOverlayState::Default:
         {
             const int NewIndex = FMath::RandRange(0,FistMontageArray.Num()-1);
-            CharacterOwner->PlayAnimMontage(FistMontageArray[NewIndex]);
+            CharacterOwner->PlayAnimMontage(FistMontageArray[NewIndex],1.25f);
             break;
         }
     case EALSOverlayState::Sword:
@@ -454,6 +493,28 @@ void UCPC_Combat::LightAttack()
             // ReSharper disable once CppAssignedValueIsNeverUsed
             PreviousIndex = NewIndex;
             CharacterOwner->PlayAnimMontage(SwordMontageArray[FMath::RandRange(0, SwordMontageArray.Num() - 1)], 1.25f);
+        }
+        break;
+    case EALSOverlayState::Leviathan:
+        {
+            if (bIsAiming)
+            {
+                ActiveState = EActiveState::Idle;
+            }
+            else
+            {
+                //Leviathan
+                int32 PreviousIndex = -1;
+                int32 NewIndex;
+                do
+                {
+                    NewIndex = FMath::RandRange(0,FistMontageArray.Num()-1);
+                }
+                while (NewIndex == PreviousIndex);
+                // ReSharper disable once CppAssignedValueIsNeverUsed
+                PreviousIndex = NewIndex;
+                CharacterOwner->PlayAnimMontage(LeviathanMontageArray[FMath::RandRange(0, LeviathanMontageArray.Num() - 1)], 1.3f);   
+            }
         }
         break;
     default:
@@ -486,6 +547,8 @@ void UCPC_Combat::EnableRootMotion() const
 
 void UCPC_Combat::ResetState() const
 {
+
+
     //ActiveState = EActiveState::Null;
     GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, TEXT("Reseted"));
     if (ActiveState == EActiveState::Attack)
@@ -764,20 +827,32 @@ void UCPC_Combat::PerformTrace()
     
     CombatMode = true;
 
-    //GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, TEXT("Hitting"));
+    if (E_AttackType == EAttackType::Leviathan)
+    {
+        FTimerHandle TimerHandle;
+        GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
+        {
+            // Restore Custom Time Dilation to 1.0 (normal behavior)
+            CharacterOwner->CustomTimeDilation = 1;
+        }, 0.08f, false);
+        CharacterOwner->CustomTimeDilation = 0;   
+    }
+    
+
+    GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, TEXT("Hitting"));
     for (const FHitResult& HitResult : OutHits)
     {
         AActor* HitActor = HitResult.GetActor();
-
+        
         FString ActorName = HitActor->GetName();
-        UE_LOG(LogTemp, Warning, TEXT("Actors name: %s"), *ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("Actors name is : %s"), *ActorName);
 
         if (EnemyToHit.Contains(HitActor))
             return;
-
+    
         EnemyToHit.Add(HitActor);
 
-        const UCPC_Combat* CombatClass = HitActor->GetComponentByClass<UCPC_Combat>();
+        UCPC_Combat* CombatClass = HitActor->GetComponentByClass<UCPC_Combat>();
          
         if (!HitActor)
             return;
@@ -794,10 +869,25 @@ void UCPC_Combat::PerformTrace()
     }
 }
 
-void UCPC_Combat::GetHit(const ACharacter* Attacker, const FStrucHitReactions HitReaction) const
+void UCPC_Combat::GetHit(const ACharacter* Attacker, const FStrucHitReactions HitReaction) 
 {
+    UHP_Bar_Widget* Temptbar = nullptr;
+    if (HP_Bar)
+        Temptbar = Cast<UHP_Bar_Widget>(HP_Bar->GetWidget());
     if ((!bBlock) || ActiveState == EActiveState::Stunt)
-        AnimInstance->Montage_Play(HitReaction.GetHit);//anim
+    {
+        AnimInstance->Montage_Play(HitReaction.GetHit,1.25f);//anim
+        if (Temptbar)
+        {
+            Temptbar->SetHP(-10);
+            if (Temptbar->GetHP() < 0)
+            {
+                AlsCharacter->RagdollStart();
+                CharacterOwner->AIControllerClass = nullptr;
+                bIsEnemy = false;
+            }
+        }
+    }
     if (bBlock && ParryTimer < 20 && CharacterOwner->IsPlayerControlled())
     {
         GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Red, TEXT("Parry"));
@@ -842,23 +932,69 @@ void UCPC_Combat::CheckEndCombat()
     }
 }
 
-void UCPC_Combat::AttachWeapon(const bool bAdd) const
+void UCPC_Combat::AttachWeapon(const bool bAdd, const EALSWaeponChoiseState State) const
 {
+    GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Red, TEXT("Attach"));
     if (!Sword || !MeshComponent)
     {
         // Handle null pointers (e.g., log an error)
         return;
     }
     const FAttachmentTransformRules AttachmentRules(EAttachmentRule::KeepRelative, true);
-    const FName SocketName = bAdd ? TEXT("SwordSocket") : TEXT("SheatSocket");
-    Sword->AttachToComponent(MeshComponent, AttachmentRules, SocketName);
+
+    FName SocketName;
+
+    // Switch based on the weapon state
+    
+    switch (State)
+    {
+    case EALSWaeponChoiseState::Sword:
+        // Decide which socket to attach based on bAdd
+            SocketName = bAdd ? TEXT("SwordSocket") : TEXT("SheatSocket");
+        GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Red, TEXT("SwordAttach"));  
+
+        // Attach the sword to the mesh
+        Sword->AttachToComponent(MeshComponent, AttachmentRules, SocketName);
+        break;
+
+    case EALSWaeponChoiseState::Leviathan:
+        // Decide which socket to attach based on bAdd
+        SocketName = bAdd ? TEXT("hand_rSocket") : TEXT("spine_03Socket");
+        GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Red, TEXT("LeviathanAttach"));
+        
+        // Attach the Leviathan axe to the mesh
+        LeviathanAxe->AttachToComponent(MeshComponent, AttachmentRules, SocketName);
+        break;
+
+    default:
+        LeviathanAxe->AttachToComponent(MeshComponent, AttachmentRules, TEXT("spine_03Socket"));
+        Sword->AttachToComponent(MeshComponent, AttachmentRules, TEXT("SheatSocket"));
+        GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Yellow, TEXT("Unexpected Weapon State"));
+        break;
+    }
 }
 
-void UCPC_Combat::EquipWeapon(const bool bEquip) const
+void UCPC_Combat::EquipWeapon(const bool bEquip, const EALSOverlayState State)
 {
     //ActiveState = EActiveState::Interaction;
-    UAnimMontage* AnimRef = bEquip ? Sword_Equip : Sword_Holster;
+    
+    AnimRef = nullptr;
+    
+    switch (State) {
+    case EALSOverlayState::Sword:
+        AnimRef = bEquip ? Sword_Equip : Sword_Holster;
+        break;
+    case EALSOverlayState::Leviathan:
+        if (!bAxeThrown)
+        {
+            AnimRef = bEquip ? Axe_Equip : Axe_Holster;
+        }
+        break;
+    default: ;
+    }
+
     CharacterOwner->PlayAnimMontage(AnimRef);
+    
 
 }
 
@@ -877,6 +1013,22 @@ bool UCPC_Combat::SelectAttackTrace(TArray<FHitResult>& OutHits)
     const FVector Sword_End = Sword->GetSocketLocation("Socket2");
     const FRotator Orientation = Sword->GetSocketRotation("Socket1");
     const FVector HalfSize = FVector(5,5,0);
+
+    FVector Leviathan_Start;
+    FVector Leviathan_End;
+    FRotator LeviathanOrientation;
+    FVector LeviathanHalfSize;
+    //Leviathan Socket
+    if (LeviathanAxe)
+    {
+        Leviathan_Start = LeviathanAxe->SkeletalMesh->GetSocketLocation("Socket1");
+         Leviathan_End = LeviathanAxe->SkeletalMesh->GetSocketLocation("Socket2");
+         LeviathanOrientation = LeviathanAxe->SkeletalMesh->GetSocketRotation("Socket1");
+         LeviathanHalfSize = FVector(10,12,10);
+    }
+    
+
+    
 
     //MultiTrace Variables
     constexpr float Radius = 15.0f;
@@ -925,6 +1077,23 @@ bool UCPC_Combat::SelectAttackTrace(TArray<FHitResult>& OutHits)
             true
         );  
 #pragma endregion   Sword  
+        break;
+    case EAttackType::Leviathan:
+#pragma region Leviathan
+        bHit = UKismetSystemLibrary::BoxTraceMultiForObjects(
+            this,
+            Leviathan_Start,
+            Leviathan_End,
+            LeviathanHalfSize,  
+            LeviathanOrientation,
+            ObjectTypes,
+            false,
+            ActorsToIgnore,
+            EDrawDebugTrace::ForOneFrame,
+            OutHits,
+            true
+        ); 
+#pragma endregion Leviathan
         break;
     default:
         break;

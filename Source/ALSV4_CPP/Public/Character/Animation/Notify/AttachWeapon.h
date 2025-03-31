@@ -6,6 +6,14 @@
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "AttachWeapon.generated.h"
 
+UENUM()
+enum class EALSWaeponChoiseState : uint8
+{
+	Sword,
+	Leviathan,
+};
+
+enum class EALSWaeponChoiseState : uint8;
 /**
  * 
  */
@@ -20,5 +28,8 @@ public:
 
 	UPROPERTY(EditAnywhere,BlueprintReadWrite)
 	bool bAdd;
+	UPROPERTY(EditAnywhere,BlueprintReadWrite)
+	EALSWaeponChoiseState WeaponState;
+	
 	
 };

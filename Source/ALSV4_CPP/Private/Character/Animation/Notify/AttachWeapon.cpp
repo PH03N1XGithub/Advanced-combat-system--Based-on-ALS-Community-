@@ -12,7 +12,7 @@ void UAttachWeapon::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* 
 
 	if (const UCPC_Combat* CombatComp = MeshComp->GetOwner()->GetComponentByClass<UCPC_Combat>())
 	{
-		CombatComp->AttachWeapon(bAdd);
+		CombatComp->AttachWeapon(bAdd, WeaponState);
 	}
 
 

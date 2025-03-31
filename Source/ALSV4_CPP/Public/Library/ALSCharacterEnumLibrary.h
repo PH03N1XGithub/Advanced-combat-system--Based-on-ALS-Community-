@@ -78,6 +78,7 @@ enum class EALSOverlayState : uint8
 	Box,
 	Barrel,
 	Sword,
+	Leviathan,
 };
 
 /**
@@ -192,7 +193,8 @@ UENUM(BlueprintType)
 enum class EAttackType : uint8
 {
 	Fist,
-	Sword
+	Sword,
+	Leviathan,
 };
 
 UENUM(BlueprintType)
